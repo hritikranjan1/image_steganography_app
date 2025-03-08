@@ -41,8 +41,8 @@ Follow these steps to set up the project on your local machine:
 Clone the repository to your local machine using the following command:
 
 ```bash
-git clone https://github.com/hritikranjan1/steganography-image-message.git
-cd steganography-image-message
+git clone https://github.com/hritikranjan1/image_steganography_app
+cd image_steganography_app
 ```
 
 ### 2. Set up Python Environment
