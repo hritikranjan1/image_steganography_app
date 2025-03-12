@@ -24,31 +24,25 @@ def encode_image():
         return jsonify({'error': 'No image or message provided'}), 400
 
     image = request.files['image']
-    message = request.form['message']
+    message = request.form['message'].strip()
 
-    if image.filename == '':
+    if not image.filename:
         return jsonify({'error': 'No selected file'}), 400
 
-    try:
-        img = Image.open(image)
-        img = img.convert("RGB")  # Ensure image is in RGB mode
+    if not message:
+        return jsonify({'error': 'Message cannot be empty'}), 400
 
-        # Encode the message using Stepic
+    try:
+        img = Image.open(image).convert("RGB")
         encoded_img = stepic.encode(img, message.encode())
 
         # Generate unique filename
         filename = f"encoded_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
         encoded_path = os.path.join(ENCODED_FOLDER, filename)
-
-        # Save the encoded image
         encoded_img.save(encoded_path, format='PNG')
 
-        print(f"✅ Encoded image saved at: {encoded_path}")  # Debugging
-
         return jsonify({'message': 'Image encoded successfully', 'encoded_image': filename})
-
     except Exception as e:
-        print(f"❌ Error: {e}")  # Debugging
         return jsonify({'error': str(e)}), 500
 
 @app.route('/decode', methods=['POST'])
@@ -57,21 +51,15 @@ def decode_image():
         return jsonify({'error': 'No image provided'}), 400
 
     image = request.files['image']
-    
-    if image.filename == '':
+    if not image.filename:
         return jsonify({'error': 'No selected file'}), 400
 
     try:
-        img = Image.open(image)
-        img = img.convert("RGB")  # Ensure it's in RGB mode
-
-        # Decode the message using Stepic
+        img = Image.open(image).convert("RGB")
         decoded_message = stepic.decode(img)
 
         return jsonify({'message': decoded_message})
-
     except Exception as e:
-        print(f"❌ Error: {e}")  # Debugging
         return jsonify({'error': str(e)}), 500
 
 @app.route('/download_encoded/<filename>')
@@ -79,8 +67,7 @@ def download_encoded(filename):
     encoded_path = os.path.join(ENCODED_FOLDER, filename)
     if os.path.exists(encoded_path):
         return send_file(encoded_path, as_attachment=True)
-    else:
-        return jsonify({'error': 'Encoded image not found'}), 404
+    return jsonify({'error': 'Encoded image not found'}), 404
 
 if __name__ == '__main__':
     app.run(debug=True)
