@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Steganography - Hide Secret Messages</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script defer src="{{ url_for('static', filename='js/script.js') }}"></script>
     <style>
         /* Body & Background */
         body {
@@ -123,6 +122,42 @@
         .logo-encode:hover {
             transform: rotate(360deg);
         }
+
+        /* Modal Styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: #1f2833;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            color: #f1f1f1;
+            box-shadow: 0px 4px 20px rgba(0, 255, 204, 0.3);
+        }
+
+        .close {
+            color: #f1f1f1;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #00ffcc;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-700">
@@ -146,9 +181,11 @@
             <h3 class="text-xl font-semibold mb-4 flex items-center justify-center text-teal-300">
                 <div class="logo-encode">E</div>
                 Encode a Message
+                <button id="infoBtn" class="ml-2 text-teal-300 hover:text-teal-500">ℹ️</button>
             </h3>
-            <input type="file" id="imageInput" accept="image/*" class="input-file mb-3">
+            <input type="file" id="imageInput" accept=".png" class="input-file mb-3">
             <input type="text" id="messageInput" placeholder="Enter secret message" class="text-input mb-3">
+            <input type="password" id="passwordInputEncode" placeholder="Optional password" class="text-input mb-3">
             <button onclick="encodeImage()" class="btn hover:scale-105">Encode & Download</button>
         </div>
 
@@ -158,9 +195,31 @@
         <!-- Decoding Section -->
         <div class="section mb-6 animate__animated animate__fadeIn">
             <h3 class="text-xl font-semibold mb-4 text-teal-300">📜 Decode Hidden Message</h3>
-            <input type="file" id="decodeImageInput" accept="image/*" class="input-file mb-3">
+            <input type="file" id="decodeImageInput" accept=".png" class="input-file mb-3">
+            <input type="password" id="passwordInputDecode" placeholder="Enter password (if used)" class="text-input mb-3">
             <button onclick="decodeImage()" class="btn hover:scale-105">Decode</button>
             <p id="decodedMessage" class="decoded-text"></p>
+        </div>
+    </div>
+
+    <!-- Popup Modal -->
+    <div id="infoModal" class="modal">
+        <div class="modal-content">
+            <span class="close">×</span>
+            <h3 class="text-xl font-semibold mb-4">Share the Encoded File</h3>
+            <p class="text-base">
+                Share the downloaded encoded file with your friend via a method that preserves the file as-is, such as:
+            </p>
+            <ul class="list-disc ml-5 mt-2 mb-4">
+                <li><b>Google Drive:</b> Upload the file and share the link.</li>
+                <li><b>Email:</b> Attach the file to an email.</li>
+            </ul>
+            <p class="text-base">
+                <b>Important:</b> Avoid compression-based apps like WhatsApp, as they may alter the file and break the hidden message.
+            </p>
+            <p class="text-base mt-2">
+                If you used a password, share it with your friend separately (e.g., via a secure chat).
+            </p>
         </div>
     </div>
 
@@ -169,5 +228,101 @@
         <p class="text-sm">Developed by <strong>Hritik Ranjan</strong></p>
     </footer>
 
+    <script>
+        // Encode Image Function
+        function encodeImage() {
+            const imageInput = document.getElementById('imageInput').files[0];
+            const message = document.getElementById('messageInput').value;
+            const password = document.getElementById('passwordInputEncode').value;
+            const encodedContainer = document.getElementById('encodedImageContainer');
+
+            if (!imageInput || !message) {
+                alert('Please upload a PNG image and enter a message!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', imageInput);
+            formData.append('message', message);
+            if (password) formData.append('password', password);
+
+            fetch('/encode', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    encodedContainer.innerHTML = `<p class="text-red-500">${data.error}</p>`;
+                } else {
+                    encodedContainer.innerHTML = `<p class="text-teal-300">✅ Encoded successfully! Downloading...</p>`;
+                    window.location.href = `/download_encoded/${data.encoded_image}`;
+                    document.getElementById('imageInput').value = '';
+                    document.getElementById('messageInput').value = '';
+                    document.getElementById('passwordInputEncode').value = '';
+                }
+            })
+            .catch(error => {
+                encodedContainer.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            });
+        }
+
+        // Decode Image Function
+        function decodeImage() {
+            const decodeImageInput = document.getElementById('decodeImageInput').files[0];
+            const password = document.getElementById('passwordInputDecode').value;
+            const decodedMessage = document.getElementById('decodedMessage');
+
+            if (!decodeImageInput) {
+                alert('Please upload a PNG image to decode!');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', decodeImageInput);
+            if (password) formData.append('password', password);
+
+            fetch('/decode', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    decodedMessage.textContent = `❌ ${data.error}`;
+                    decodedMessage.style.color = '#ff6b6b';
+                    decodedMessage.style.animation = 'none';
+                } else {
+                    decodedMessage.textContent = data.message;
+                    decodedMessage.style.color = '#ffb86c';
+                    decodedMessage.style.animation = 'textGlow 1.5s infinite alternate';
+                }
+            })
+            .catch(error => {
+                decodedMessage.textContent = `Error: ${error.message}`;
+                decodedMessage.style.color = '#ff6b6b';
+                decodedMessage.style.animation = 'none';
+            });
+        }
+
+        // Modal Functionality
+        const modal = document.getElementById('infoModal');
+        const infoBtn = document.getElementById('infoBtn');
+        const closeBtn = document.querySelector('.close');
+
+        infoBtn.addEventListener('click', () => {
+            modal.style.display = 'block';
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
